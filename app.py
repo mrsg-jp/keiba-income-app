@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 
 st.set_page_config(page_title="競馬収支管理", layout="wide")
-st.title("🏇 競馬収支管理アプリ（表表示 & デフォルト強化）")
+st.title("🏇 競馬収支管理アプリ")
 
 DATA_FILE = "keiba_records.csv"
 

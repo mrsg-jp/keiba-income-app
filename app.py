@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 
 st.set_page_config(page_title="競馬収支管理", layout="wide")
-st.title("🏇 競馬収支管理アプリ（競馬場切替修正版）")
+st.title("🏇 競馬収支管理アプリ（競馬場切替完全修正版）")
 
 DATA_FILE = "keiba_records.csv"
 
@@ -34,10 +34,17 @@ if menu == "記録ページ":
         "海外": ["香港", "サウジアラビア", "アラブ", "フランス", "アメリカ", "イギリス", "アイルランド", "オーストラリア"]
     }
 
-    with st.form("form"):
-        region = st.selectbox("区分", ["中央", "地方", "海外"])
-        racecourse = st.selectbox("競馬場", racecourse_dict[region], key=f"racecourse_{region}")
+    # セッション管理による動的切替
+    region = st.selectbox("区分", ["中央", "地方", "海外"], key="region")
+    if "last_region" not in st.session_state:
+        st.session_state.last_region = region
+    if region != st.session_state.last_region:
+        st.session_state.racecourse = racecourse_dict[region][0]
+        st.session_state.last_region = region
 
+    racecourse = st.selectbox("競馬場", racecourse_dict[region], key="racecourse")
+
+    with st.form("form"):
         date = st.date_input("日付", datetime.date.today())
         race = st.selectbox("レース番号", [f"{i}R" for i in range(1, 13)])
         grade = st.selectbox("グレード", ["G1", "G2", "G3", "OP", "条件戦", "未勝利", "重賞", "A級", "B級", "C級", "一般"])
@@ -66,4 +73,4 @@ if menu == "記録ページ":
             st.success("記録を保存しました")
 
 else:
-    st.info("この修正版は記録ページの動的競馬場切替機能のみ修正しています。")
+    st.info("この修正版は記録ページの競馬場リスト動的切り替え機能を完全対応しました。")

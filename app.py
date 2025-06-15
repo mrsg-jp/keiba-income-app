@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 
 st.set_page_config(page_title="競馬収支管理", layout="wide")
-st.title("🏇 競馬収支管理アプリ（完全修正版）")
+st.title("🏇 競馬収支管理アプリ（表表示 & デフォルト強化）")
 
 DATA_FILE = "keiba_records.csv"
 
@@ -45,10 +45,10 @@ if menu == "記録ページ":
 
     with st.form("form"):
         date = st.date_input("日付", value=datetime.date.today())
-        race = st.selectbox("レース番号", [f"{i}R" for i in range(1, 13)])
+        race = st.selectbox("レース番号", [f"{i}R" for i in range(1, 13)], index=10)  # default 11R (index=10)
         grade = st.selectbox("グレード", ["G1", "G2", "G3", "OP", "条件戦", "未勝利", "重賞", "A級", "B級", "C級", "一般"])
         surface = st.radio("芝・ダート", ["芝", "ダート"])
-        distance = st.number_input("距離(m)", 100, 4000, step=100)
+        distance = st.number_input("距離(m)", 100, 4000, value=1600, step=100)  # default 1600
         bet_type = st.selectbox("式別", ["単勝", "複勝", "枠連", "馬連", "馬単", "ワイド", "三連複", "三連単"])
         purchase = st.number_input("購入金額", min_value=0, step=100)
         payout = st.number_input("払戻金額", min_value=0, step=100)
@@ -72,7 +72,7 @@ if menu == "記録ページ":
             st.success("記録を保存しました")
 
 elif menu == "一覧ページ":
-    st.header("全データ一覧（削除・絞り込み可能）")
+    st.header("全データ一覧（表表示＋削除機能）")
 
     if records.empty:
         st.info("記録がまだありません。")
@@ -100,6 +100,10 @@ elif menu == "一覧ページ":
 
         filtered = filtered.sort_values(by="date", ascending=False)
 
+        st.subheader("📋 表形式で表示")
+        st.dataframe(filtered.reset_index(drop=True), use_container_width=True)
+
+        st.subheader("🗑 削除対象の選択")
         delete_indices = []
         for idx, row in filtered.iterrows():
             with st.expander(f"{row['date'].date() if pd.notnull(row['date']) else 'NaT'} | {row['region']} | {row['racecourse']} | {row.get('race','')}"):

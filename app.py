@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 
 st.set_page_config(page_title="競馬収支管理", layout="wide")
-st.title("🏇 競馬収支管理アプリ（改良版）")
+st.title("🏇 競馬収支管理アプリ（拡張版）")
 
 DATA_FILE = "keiba_records.csv"
 
@@ -14,7 +14,7 @@ def load_data():
         return df
     except:
         return pd.DataFrame(columns=[
-            'date', 'region', 'racecourse', 'grade', 'surface', 'distance',
+            'date', 'region', 'racecourse', 'race', 'grade', 'surface', 'distance',
             'bet_type', 'purchase', 'payout'
         ])
 
@@ -35,15 +35,11 @@ if menu == "記録ページ":
     }
 
     with st.form("form"):
-        region = st.selectbox("区分", ["中央", "地方", "海外"], key="region_select")
-        if "last_region" not in st.session_state:
-            st.session_state.last_region = region
-        if region != st.session_state.last_region:
-            st.session_state.racecourse_select = None
-            st.session_state.last_region = region
-        racecourse = st.selectbox("競馬場", racecourse_dict[region], key="racecourse_select")
+        region = st.selectbox("区分", ["中央", "地方", "海外"])
+        racecourse = st.selectbox("競馬場", racecourse_dict.get(region, []))
 
         date = st.date_input("日付", datetime.date.today())
+        race = st.selectbox("レース番号", [f"{i}R" for i in range(1, 13)])
         grade = st.selectbox("グレード", ["G1", "G2", "G3", "OP", "条件戦", "未勝利", "重賞", "A級", "B級", "C級", "一般"])
         surface = st.radio("芝・ダート", ["芝", "ダート"])
         distance = st.number_input("距離(m)", 100, 4000, step=100)
@@ -54,26 +50,62 @@ if menu == "記録ページ":
 
         if submit:
             new = pd.DataFrame([{
-                'date': date, 'region': region, 'racecourse': racecourse, 'grade': grade, 'surface': surface,
-                'distance': distance, 'bet_type': bet_type, 'purchase': purchase, 'payout': payout
+                'date': pd.to_datetime(date),
+                'region': region,
+                'racecourse': racecourse,
+                'race': race,
+                'grade': grade,
+                'surface': surface,
+                'distance': distance,
+                'bet_type': bet_type,
+                'purchase': purchase,
+                'payout': payout
             }])
             records = pd.concat([records, new], ignore_index=True)
             save_data(records)
             st.success("記録を保存しました")
 
 elif menu == "一覧ページ":
-    st.header("全データ一覧（削除可能）")
+    st.header("全データ一覧（削除・絞り込み可能）")
+
     if records.empty:
         st.info("記録がまだありません。")
     else:
-        for idx, row in records.iterrows():
-            st.write(f"{row['date'].date()} | {row['region']} | {row['racecourse']} | {row['bet_type']} | 購入: {row['purchase']}円 / 払戻: {row['payout']}円")
+        st.subheader("🔍 フィルター")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            selected_regions = st.multiselect("区分", records["region"].unique())
+        with col2:
+            selected_courses = st.multiselect("競馬場", records["racecourse"].unique())
+        with col3:
+            selected_grades = st.multiselect("グレード", records["grade"].unique())
+        with col4:
+            selected_surface = st.multiselect("芝・ダート", records["surface"].unique())
+
+        filtered = records.copy()
+        if selected_regions:
+            filtered = filtered[filtered["region"].isin(selected_regions)]
+        if selected_courses:
+            filtered = filtered[filtered["racecourse"].isin(selected_courses)]
+        if selected_grades:
+            filtered = filtered[filtered["grade"].isin(selected_grades)]
+        if selected_surface:
+            filtered = filtered[filtered["surface"].isin(selected_surface)]
+
+        filtered = filtered.sort_values(by="date", ascending=False)
+
+        for idx, row in filtered.iterrows():
+            date_str = row['date'].date() if pd.notnull(row['date']) else "NaT"
+            st.write(
+                f"{date_str} | {row['region']} | {row['racecourse']} | {row.get('race','')} | "
+                f"{row['grade']} | {row['surface']} | {row['distance']}m | {row['bet_type']} | "
+                f"購入: {row['purchase']}円 / 払戻: {row['payout']}円"
+            )
             if st.button(f"削除 {idx}", key=f"delete_{idx}"):
                 records.drop(index=idx, inplace=True)
                 records.reset_index(drop=True, inplace=True)
                 save_data(records)
-                st.success("削除しました")
-                st.experimental_rerun()
+                st.success("削除しました。再読み込みしてください。")
 
 elif menu == "収支ページ":
     st.header("収支サマリー・分析")

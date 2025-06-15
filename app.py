@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 
 st.set_page_config(page_title="競馬収支管理", layout="wide")
-st.title("🏇 競馬収支管理アプリ（拡張版）")
+st.title("🏇 競馬収支管理アプリ（改善版）")
 
 DATA_FILE = "keiba_records.csv"
 
@@ -29,9 +29,9 @@ if menu == "記録ページ":
     st.header("記録の入力")
 
     racecourse_dict = {
-        "中央": ["東京", "中山", "京都", "阪神", "小倉", "札幌", "函館", "新潟", "中京"],
-        "地方": ["大井", "川崎", "船橋", "浦和", "名古屋", "笠松", "園田", "姫路", "高知", "佐賀", "盛岡", "水沢", "金沢", "帯広"],
-        "海外": ["香港", "ドバイ", "アメリカ", "イギリス", "フランス", "オーストラリア"]
+        "中央": ["札幌", "函館", "福島", "中山", "東京", "新潟", "中京", "京都", "阪神", "小倉"],
+        "地方": ["帯広", "門別", "盛岡", "水沢", "浦和", "船橋", "大井", "川崎", "金沢", "笠松", "名古屋", "園田", "姫路", "高知", "佐賀"],
+        "海外": ["香港", "サウジアラビア", "アラブ", "フランス", "アメリカ", "イギリス", "アイルランド", "オーストラリア"]
     }
 
     with st.form("form"):
@@ -94,18 +94,19 @@ elif menu == "一覧ページ":
 
         filtered = filtered.sort_values(by="date", ascending=False)
 
+        delete_indices = []
         for idx, row in filtered.iterrows():
-            date_str = row['date'].date() if pd.notnull(row['date']) else "NaT"
-            st.write(
-                f"{date_str} | {row['region']} | {row['racecourse']} | {row.get('race','')} | "
-                f"{row['grade']} | {row['surface']} | {row['distance']}m | {row['bet_type']} | "
-                f"購入: {row['purchase']}円 / 払戻: {row['payout']}円"
-            )
-            if st.button(f"削除 {idx}", key=f"delete_{idx}"):
-                records.drop(index=idx, inplace=True)
-                records.reset_index(drop=True, inplace=True)
-                save_data(records)
-                st.success("削除しました。再読み込みしてください。")
+            with st.expander(f"{row['date'].date() if pd.notnull(row['date']) else 'NaT'} | {row['region']} | {row['racecourse']} | {row.get('race','')}"):
+                st.write(f"グレード: {row['grade']} | {row['surface']} | {row['distance']}m | {row['bet_type']}")
+                st.write(f"購入: {row['purchase']}円 / 払戻: {row['payout']}円")
+                if st.checkbox(f"削除対象にする", key=f"check_{idx}"):
+                    delete_indices.append(idx)
+
+        if delete_indices and st.button("✅ 選択した記録を削除"):
+            records.drop(index=delete_indices, inplace=True)
+            records.reset_index(drop=True, inplace=True)
+            save_data(records)
+            st.success(f"{len(delete_indices)} 件の記録を削除しました。再読み込みしてください。")
 
 elif menu == "収支ページ":
     st.header("収支サマリー・分析")
@@ -115,8 +116,8 @@ elif menu == "収支ページ":
     else:
         records["balance"] = records["payout"] - records["purchase"]
         records["year"] = records["date"].dt.year
-        records["month"] = records["date"].dt.to_period("M")
-        records["week"] = records["date"].dt.to_period("W")
+        records["month"] = records["date"].dt.to_period("M").astype(str)
+        records["week"] = records["date"].dt.to_period("W").astype(str)
 
         st.sidebar.markdown("### フィルター")
         year_filter = st.sidebar.selectbox("年", ["全て"] + sorted(records["year"].dropna().unique().tolist()))
